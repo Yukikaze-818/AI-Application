@@ -1,0 +1,15 @@
+{
+  "best_model": "logistic_regression",
+  "validation_roc_auc": 0.8820160366552119,
+  "validation_average_precision": 0.7209066317723702,
+  "validation_precision": 0.5746606334841629,
+  "validation_recall": 0.7559523809523809,
+  "validation_brier_score": 0.13641029633697446,
+  "test_metrics": {
+    "roc_auc": 0.8640566192112584,
+    "average_precision": 0.6736989810176081,
+    "precision": 0.49809885931558934,
+    "recall": 0.7797619047619048,
+    "brier_score": 0.15252956473776066
+  }
+}
