@@ -1,1 +1,0 @@
-﻿"""Rain prediction package."""
