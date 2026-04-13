@@ -40,6 +40,23 @@ except ImportError:
     XGBOOST_AVAILABLE = False
 
 
+def build_xgboost_estimator(random_state: int = 42) -> "XGBClassifier":
+    """Build an XGBoost estimator that prefers GPU and falls back gracefully."""
+    return XGBClassifier(
+        random_state=random_state,
+        n_estimators=250,
+        learning_rate=0.05,
+        max_depth=5,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        objective="binary:logistic",
+        eval_metric="logloss",
+        tree_method="hist",
+        device="cuda",
+        n_jobs=1,
+    )
+
+
 @dataclass
 class TrainingResult:
     """Simple container for tracking a fitted model and its metrics."""
@@ -136,20 +153,7 @@ def make_model_candidates(df: pd.DataFrame, random_state: int = 42) -> Dict[str,
                 steps=[
                     ("features", feature_transformer),
                     ("preprocessor", preprocessor),
-                    (
-                        "model",
-                        XGBClassifier(
-                            random_state=random_state,
-                            n_estimators=250,
-                            learning_rate=0.05,
-                            max_depth=5,
-                            subsample=0.9,
-                            colsample_bytree=0.9,
-                            objective="binary:logistic",
-                            eval_metric="logloss",
-                            n_jobs=1,
-                        ),
-                    ),
+                    ("model", build_xgboost_estimator(random_state=random_state)),
                 ]
             ),
             {
@@ -182,9 +186,14 @@ def fit_and_tune_models(
     x_valid: pd.DataFrame,
     y_valid: pd.Series,
     random_state: int = 42,
+    model_names: List[str] | None = None,
 ) -> Tuple[List[TrainingResult], TrainingResult]:
     """Tune each model using randomized search and keep the best candidate."""
     candidates = make_model_candidates(pd.concat([x_train, y_train], axis=1), random_state=random_state)
+    if model_names is not None:
+        candidates = {name: candidates[name] for name in model_names if name in candidates}
+        if not candidates:
+            raise ValueError("No matching models available for training.")
 
     tune_x = x_train
     tune_y = y_train
@@ -221,7 +230,25 @@ def fit_and_tune_models(
             refit=True,
             verbose=0,
         )
-        search.fit(tune_x, tune_y)
+        try:
+            search.fit(tune_x, tune_y)
+        except Exception:
+            # In environments where CUDA is unavailable, retry XGBoost on CPU.
+            if name != "xgboost":
+                raise
+            pipeline.set_params(model__device="cpu")
+            search = RandomizedSearchCV(
+                estimator=pipeline,
+                param_distributions=param_grid,
+                n_iter=min(search_iterations, int(np.prod([len(v) for v in param_grid.values()]))),
+                scoring="roc_auc",
+                n_jobs=1,
+                cv=cv,
+                random_state=random_state,
+                refit=True,
+                verbose=0,
+            )
+            search.fit(tune_x, tune_y)
 
         best_estimator = clone(pipeline).set_params(**search.best_params_)
 

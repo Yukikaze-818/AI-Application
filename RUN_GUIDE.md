@@ -79,6 +79,27 @@ python scripts/train_pipeline.py --data data/raw/weatherAUS.csv
 streamlit run app/streamlit_app.py
 ```
 
+
+### Recommended Course Workflow
+
+1. Small-sample multi-model comparison:
+
+```powershell
+python scripts/train_pipeline.py --data data/raw/weatherAUS.csv --max-rows 5000 --run-name baseline
+```
+
+2. Larger GPU-focused XGBoost run:
+
+```powershell
+python scripts/train_pipeline.py --data data/raw/weatherAUS.csv --max-rows 20000 --xgb-only --run-name xgb_gpu
+```
+
+3. Full-dataset XGBoost optimization:
+
+```powershell
+python scripts/train_pipeline.py --data data/raw/weatherAUS.csv --xgb-only --run-name xgb_full
+```
+
 ## 3. What Each Step Produces
 
 - `generate_demo_data.py`
@@ -104,3 +125,20 @@ streamlit run app/streamlit_app.py
 - `xgboost` is optional in the current environment. If it is not installed, the pipeline still runs with Logistic Regression, Decision Tree, and Random Forest.
 - The current local validation was completed with the auto-generated demo dataset.
 - To use the real course project dataset, replace the demo CSV with the Kaggle file and rerun EDA plus training.
+- For the project requirements, a good strategy is:
+  - use `--max-rows 5000` for multi-model comparison,
+  - then use `--xgb-only` on larger data to focus on GPU training.
+
+
+## 5. Separate Output Folders
+
+Each run can now be saved in its own subfolder under `outputs/` by using `--run-name`.
+
+Examples:
+
+- `outputs/baseline/metrics`
+- `outputs/baseline/models`
+- `outputs/xgb_gpu/metrics`
+- `outputs/xgb_gpu/models`
+- `outputs/xgb_full/metrics`
+- `outputs/xgb_full/models`
